@@ -1,0 +1,10 @@
+All tests passed for Part A. 
+Part A implements a protocol which has part of TCP's function for organizing unorder msg, and retransmit msg if lost. Unlike TCP, ack msg is in sequence, but not in size, and it won't combine seq received so far. Still it is a good way to understand msgs not in order and retransmission. 
+
+The description is ambugious in some details, and slows down the implementation. Especially for Read() in server_impl.go. Based on the test case in lsp3_test.go, all client lost need to be returned in Read, so if a client lost, then its lost err should be put into the read buffer for future Read() invoke.
+
+1. Need to use lspnet's network API to finish the codes, for the purpose of testing dropping packages. In these APIs, UDP is used as the building block. 
+2. In order to avoid race, most of the handling is processed by a single thread. Since only 1 thread for recv/send, for every msg received, it needs to go to a singleton instance to get the client information. This makes sense I think only in the context of UDP, since UDP is connectionless, and data size is limited by this project description. 
+3. A techniq learnt from the test cases: Multiple go routine need to exit at the end, and they can be all check on the same channel to return. At the end of the program, just close the channel, then it will not block any more, and trigger the return. 
+4. receive API will block until some msg is received, but send API will not block. 
+5. Supposedly, we should read through the test cases to understand how it works if description is not clear. However, reading chunks of codes are painful. 
