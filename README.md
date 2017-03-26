@@ -2,7 +2,10 @@ p1
 ==
 
 This repository contains the starter code for project 1 (15-440, Fall 2016). It's a bit different
-from the old version, eg. message has new field Size in the Fall2016 version. 
+from the old version(https://github.com/cmu440/p1) , eg. message has new field Size in the Fall2016 version. 
+
+Note: stest in bin is from the old version for testing server of Part B, since older version has different msg
+structure, it needs to tailor based on that to make stest work. 
 
 ## Part A LSP Protocol
 
