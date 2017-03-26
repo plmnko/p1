@@ -1,4 +1,5 @@
-All tests passed for Part A. 
+All tests passed for Part A and Part B. 
+
 Part A implements a protocol which has part of TCP's function for organizing unorder msg, and retransmit msg if lost. Unlike TCP, ack msg is in sequence, but not in size, and it won't combine seq received so far. Still it is a good way to understand msgs not in order and retransmission. 
 
 The description is ambugious in some details, and slows down the implementation. Especially for Read() in server_impl.go. Based on the test case in lsp3_test.go, all client lost need to be returned in Read, so if a client lost, then its lost err should be put into the read buffer for future Read() invoke.
@@ -8,3 +9,23 @@ The description is ambugious in some details, and slows down the implementation.
 3. A techniq learnt from the test cases: Multiple go routine need to exit at the end, and they can be all check on the same channel to return. At the end of the program, just close the channel, then it will not block any more, and trigger the return. 
 4. receive API will block until some msg is received, but send API will not block. 
 5. Supposedly, we should read through the test cases to understand how it works if description is not clear. However, reading chunks of codes are painful. 
+
+Part B is mainly for invoking Part A's API and implements a scheduler for job distribution. To find the bitcoin, it needs a lot of hash calculation to find the minimum hash. The task in this part is to implement server, client, miner. A client sends a request to server, server divides the job and distributes them to miners. Miner return the result to server, and server returns the combined result (least hash) to client. 
+stest from old version can be used to test server, but need to change the message structure to remove the size. 
+This part relies on the returned content of Read/Write api. Since Part A tests only checks the count of the messages but not the content, wrong implementation in Part A might trigger issues in Part B. 
+
+1. The scheduler algorithm. 
+It requires that each requests are averagely servered with almost the same count of miners, which means something like a simplified version of fair scheduler of YARN. Read quite a few before of YARN, but never considered about the minimum details like how to split the job, and how to map them in data structures. Still, not quite sure yet, especially the data structure part. 
+The fair scheduler in this implementation is:
+1> Calculate averagely how many miners a job can have.
+2> Looping through the askList of jobs, if currently running tasks < avg,  and unlaunched tasks > 0, then assign a free miner to this job. If no free miner, then exit allocation
+
+2. The change in lsp server. 
+In one of the test of stest, a task is assigned to a miner, and the miner gets killed. Server is not able to detect that the miner has lost until epoch time reach, but by then, the epoch time of client reached first, and client lost first. 
+Hence, changed the epoch logic in server: from "If no data messages have been received from the client, then resend an acknowledgment message for the client’s connection request." to resend ack of connection request in each epoch, in order to keep the client alive. 
+This will not damage the lsp test result. 
+
+3. The slice of the size of each task in the schedulling. If set to too small, then it needs to keep launching miners, and the client might get lost first if 2. is not implemented. Based on stest, set to 50000 should make sense. 
+
+
+ 
