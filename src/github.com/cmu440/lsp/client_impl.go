@@ -208,7 +208,9 @@ func (c *client) handleWriteReq(wq writeReq) {
 		return
 	}
 	c.seqSend++
-	msg := NewData(c.connID, c.seqSend, len(payload), payload)
+	msg := NewData(c.connID, c.seqSend,
+		len(payload),
+		payload)
 	if msg.SeqNum <= c.seqAck+c.windowSize {
 		c.notAckMsgList[msg.SeqNum] = msg
 		sendMsgClient(msg, c.conn)

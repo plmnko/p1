@@ -178,14 +178,14 @@ func (s *server) handleDataMsg(wrapper *msgWrapper) {
 	if msg.SeqNum == cli.seqRecv+1 { // expected sequence
 		cli.seqRecv++
 		s.readBuffer = append(s.readBuffer,
-			&readRep{msg.ConnID, msg.Payload, nil})
+			&readRep{cli.connID, msg.Payload, nil})
 
 		l := len(cli.recvDataList)
 		for i := 0; i < l; i++ {
 			if m, ok := cli.recvDataList[cli.seqRecv+1]; ok {
 				cli.seqRecv++
 				s.readBuffer = append(s.readBuffer,
-					&readRep{m.ConnID, m.Payload, nil})
+					&readRep{cli.connID, m.Payload, nil})
 				delete(cli.recvDataList, cli.seqRecv)
 			} else {
 				break
@@ -225,7 +225,8 @@ func (s *server) handleAckMsg(wrapper *msgWrapper) {
 		len(cli.notAckMsgList) == 0 && len(cli.writeBuffer) == 0 {
 		cli.isClosed = true
 		s.clientCnt--
-		s.readBuffer = append(s.readBuffer, &readRep{0, nil, clientClosedErr})
+		s.readBuffer = append(s.readBuffer,
+			&readRep{cli.connID, nil, clientClosedErr})
 	}
 }
 
@@ -239,7 +240,9 @@ func (s *server) handleWriteReq(wq writeReq) {
 		return
 	}
 	cli.seqSend++
-	msg := NewData(connID, cli.seqSend, len(payload), payload)
+	msg := NewData(connID, cli.seqSend,
+		len(payload),
+		payload)
 	if msg.SeqNum <= cli.seqAck+s.windowSize {
 		cli.notAckMsgList[msg.SeqNum] = msg
 		sendMsg(msg, cli.addr, s.conn)
@@ -251,7 +254,7 @@ func (s *server) handleWriteReq(wq writeReq) {
 // invoked by mainRoutine, handle Read() request
 // either when request just received or when data received
 func (s *server) handleReadReq() {
-	if s.closeSig {
+	if s.closeSig { // should not be invoked, based on description
 		s.rReqFlag = false
 		s.rRepChan <- &readRep{0, nil, serverCloseErr}
 		return
@@ -284,14 +287,14 @@ func (s *server) handleEpoch() {
 				s.clientCnt--
 
 				s.readBuffer = append(s.readBuffer,
-					&readRep{0, nil, clientLostErr})
+					&readRep{cli.connID, nil, clientLostErr})
 			}
 			if !cli.isLost {
 				// if no data msg have been received
-				if cli.seqRecv == 0 {
-					msg := NewAck(connID, 0)
-					sendMsg(msg, cli.addr, s.conn)
-				}
+				//		if cli.seqRecv == 0 {
+				msg := NewAck(connID, 0)
+				sendMsg(msg, cli.addr, s.conn)
+				//		}
 				// for every msg that sent but not acked, resend
 				for _, v := range cli.notAckMsgList {
 					sendMsg(v, cli.addr, s.conn)
@@ -310,7 +313,8 @@ func (s *server) handleConnClose(connID int) {
 	if len(cli.writeBuffer) == 0 && len(cli.notAckMsgList) == 0 {
 		cli.isClosed = true
 		s.clientCnt--
-		s.readBuffer = append(s.readBuffer, &readRep{0, nil, clientLostErr})
+		s.readBuffer = append(s.readBuffer,
+			&readRep{cli.connID, nil, clientLostErr})
 	} else {
 		cli.closeSig = true
 	}
